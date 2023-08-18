@@ -676,6 +676,16 @@ impl App {
                         .max_image_width(Some(512))
                         .show(ui, &mut self.cache, &update.body);
                     ui.with_layout(egui::Layout::right_to_left(Align::TOP), |ui| {
+                        if ui
+                            .add(egui::Button::new("Install update"))
+                            .on_hover_text("Install and replace the executable. This will close the program when update is complete.")
+                            .clicked()
+                        {
+                            if let Err(e) = install_update() {
+                                debug!(?e);
+                            }
+                        }
+
                         let elapsed = now.duration_since(update_time).unwrap_or_default();
                         if elapsed > wait_time {
                             if ui.button("Close").clicked() {
@@ -1790,4 +1800,84 @@ impl From<FetchProgress> for SpecFetchProgress {
             FetchProgress::Complete { .. } => Self::Complete,
         }
     }
+}
+
+fn install_update() -> Result<()> {
+    info!("performing self update");
+
+    #[cfg(target_os = "windows")]
+    {
+        let status = self_update::backends::github::Update::configure()
+            .repo_owner("trumank")
+            .repo_name("drg-mod-integration")
+            .bin_name("drg_mod_integration")
+            .no_confirm(true)
+            .show_download_progress(true)
+            .current_version(self_update::cargo_crate_version!())
+            .build()?
+            .update()?;
+        debug!("update status: `{}`!", status.version());
+    }
+    #[cfg(target_os = "linux")]
+    {
+        use std::io::prelude::*;
+        use std::io::Cursor;
+        use tar::Archive;
+        use xz::read::XzDecoder;
+
+        let releases = self_update::backends::github::ReleaseList::configure()
+            .repo_owner("trumank")
+            .repo_name("drg-mod-integration")
+            .build()?
+            .fetch()?;
+        trace!("found releases:");
+        trace!("{:#?}\n", releases);
+
+        // get the first available release
+        let asset = releases[0]
+            .asset_for(self_update::get_target(), None)
+            .unwrap();
+
+        let tmp_dir = tempfile::Builder::new()
+            .prefix("self_update")
+            .tempdir_in(std::env::current_dir()?)?;
+        let tmp_archive_path = tmp_dir.path().join(&asset.name);
+        let tmp_archive = std::fs::File::create(&tmp_archive_path)?;
+
+        debug!(?tmp_dir);
+        debug!(?tmp_archive_path);
+        debug!(?tmp_archive);
+        debug!("tmp_archive_path.exists() = {}", tmp_archive_path.exists());
+
+        self_update::Download::from_url(&asset.download_url)
+            .set_header(reqwest::header::ACCEPT, "application/octet-stream".parse()?)
+            .show_progress(true)
+            .download_to(&tmp_archive)?;
+
+        let bin_name = PathBuf::from("drg_mod_integration");
+
+        let tmp_file = tmp_dir.path().join("replacement_tmp");
+        debug!(?tmp_file);
+
+        let tar_xz_buf = std::fs::read(tmp_archive_path)?;
+        let mut decompressor = XzDecoder::new(Cursor::new(tar_xz_buf));
+        let mut tarball_buf = vec![];
+        decompressor.read_to_end(&mut tarball_buf)?;
+        let mut archive = Archive::new(Cursor::new(tarball_buf));
+        archive.unpack(&tmp_dir)?;
+
+        let mut bin_path = PathBuf::new();
+        bin_path.push(&tmp_dir);
+        bin_path.push("drg_mod_integration-x86_64-unknown-linux-gnu");
+        bin_path.push(bin_name);
+
+        debug!(?bin_path);
+
+        self_update::Move::from_source(&bin_path)
+            .replace_using_temp(&tmp_file)
+            .to_dest(&std::env::current_exe()?)?;
+    }
+
+    info!("successfully replaced executable with newer version");
+    std::process::exit(0);
 }
