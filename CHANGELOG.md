@@ -4,6 +4,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.2.11] - 2023-08-19
+
 ## [0.2.10] - 2023-08-18
 
 - Many small improvements to the GUI
@@ -24,7 +26,8 @@
 - Fix including same asset paths with different casings causing Unreal Engine to load neither ([#29](https://github.com/trumank/drg-mod-integration/issues/29))
 
 <!-- next-url -->
-[Unreleased]: https://github.com/trumank/drg-mod-integration/compare/v0.2.10...HEAD
+[Unreleased]: https://github.com/trumank/drg-mod-integration/compare/v0.2.11...HEAD
+[0.2.11]: https://github.com/trumank/drg-mod-integration/compare/v0.2.10...v0.2.11
 [0.2.10]: https://github.com/trumank/drg-mod-integration/compare/v0.2.9...v0.2.10
 [0.2.9]: https://github.com/trumank/drg-mod-integration/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/trumank/drg-mod-integration/compare/v0.2.7...v0.2.8
