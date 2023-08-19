@@ -82,6 +82,7 @@ pub struct App {
     last_action_status: LastActionStatus,
     available_update: Option<GitHubRelease>,
     show_update_time: Option<SystemTime>,
+    needs_restart: bool,
     open_profiles: HashSet<String>,
     lint_rid: Option<MessageHandle<()>>,
     lint_report_window: Option<WindowLintReport>,
@@ -138,6 +139,7 @@ impl App {
             last_action_status: LastActionStatus::Idle,
             available_update: None,
             show_update_time: None,
+            needs_restart: false,
             open_profiles: Default::default(),
             lint_rid: None,
             lint_report_window: None,
@@ -676,13 +678,30 @@ impl App {
                         .max_image_width(Some(512))
                         .show(ui, &mut self.cache, &update.body);
                     ui.with_layout(egui::Layout::right_to_left(Align::TOP), |ui| {
-                        if ui
-                            .add(egui::Button::new("Install update"))
-                            .on_hover_text("Install and replace the executable. This will close the program when update is complete.")
-                            .clicked()
-                        {
-                            if let Err(e) = install_update() {
-                                debug!(?e);
+                        if !self.needs_restart {
+                            let install_button = ui
+                                .add(egui::Button::new("Install update"))
+                                .on_hover_text("Install and replace the executable. This will close the program when update is complete.");
+                            if install_button.clicked()
+                            {
+                                // TODO: Make this spawn_blocking
+                                if let Err(e) = install_update() {
+                                    debug!(?e);
+                                } else {
+                                    self.needs_restart = true;
+                                }
+                            }
+                        }
+
+                        if self.needs_restart {
+                            if ui
+                                .add(egui::Button::new("Restart"))
+                                .on_hover_text("Restart the program to apply the update.")
+                                .clicked()
+                            {
+                                if let Err(e) = restart_program() {
+                                    debug!(?e);
+                                }
                             }
                         }
 
@@ -1879,5 +1898,15 @@ fn install_update() -> Result<()> {
     }
 
     info!("successfully replaced executable with newer version");
+
+    Ok(())
+}
+
+fn restart_program() -> Result<()> {
+    info!("restarting program");
+
+    std::process::Command::new(std::env::current_exe()?)
+        .spawn()?;
+
     std::process::exit(0);
 }
