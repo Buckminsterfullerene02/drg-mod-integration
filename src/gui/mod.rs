@@ -1798,7 +1798,7 @@ fn install_update() -> Result<()> {
     #[cfg(target_os = "windows")]
     {
         let status = self_update::backends::github::Update::configure()
-            .repo_owner("trumank")
+            .repo_owner("Buckminsterfullerene02")
             .repo_name("drg-mod-integration")
             .bin_name("drg_mod_integration")
             .no_confirm(true)
