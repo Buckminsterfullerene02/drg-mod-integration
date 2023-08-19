@@ -676,6 +676,16 @@ impl App {
                         .max_image_width(Some(512))
                         .show(ui, &mut self.cache, &update.body);
                     ui.with_layout(egui::Layout::right_to_left(Align::TOP), |ui| {
+                        if ui
+                            .add(egui::Button::new("Install update"))
+                            .on_hover_text("Install and replace the executable. This will close the program when update is complete.")
+                            .clicked()
+                        {
+                            if let Err(e) = install_update() {
+                                debug!(?e);
+                            }
+                        }
+
                         let elapsed = now.duration_since(update_time).unwrap_or_default();
                         if elapsed > wait_time {
                             if ui.button("Close").clicked() {
